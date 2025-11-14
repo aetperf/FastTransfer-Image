@@ -1,15 +1,44 @@
-FROM ubuntu:22.04
+# syntax=docker/dockerfile:1.7
+FROM debian:bookworm-slim
 
-# Installer curl, unzip et libicu (version 70 sur Jammy)
-RUN apt-get update && apt-get install -y curl unzip libicu70 && rm -rf /var/lib/apt/lists/*
+# Common runtime packages for self-contained .NET binaries (ICU/SSL/zlib/Kerberos), CA, tz, curl
+RUN set -eux; \
+    apt-get update; \
+    DEBIAN_FRONTEND=noninteractive apt-get install -y --no-install-recommends \
+      ca-certificates tzdata curl \
+      libicu72 libssl3 zlib1g libkrb5-3 \
+    ; rm -rf /var/lib/apt/lists/*
 
-WORKDIR /app
+# Non-root user
+ARG USER=fasttransfer
+ARG UID=10001
+RUN useradd -m -u ${UID} -s /usr/sbin/nologin ${USER}
 
-# Télécharger et extraire FastTransfer
-RUN curl -L -o FastTransfer.zip "https://aetpshared.s3.eu-west-1.amazonaws.com/FastTransfer/trial/FastTransfer-linux-x64.zip" \
-    && unzip FastTransfer.zip \
-    && rm FastTransfer.zip
+# Useful directories
+WORKDIR /work
+RUN mkdir -p /config /data /logs && chown -R ${USER}:${USER} /config /data /work /logs
 
-RUN chmod +x ./FastTransfer
+######################################################################
+# Copy the FastTransfer Linux x64 binary (>= 0.28.0) 
+# Place it at the root of the repo before building.
+######################################################################
+COPY --chown=${USER}:${USER} FastTransfer /usr/local/bin/FastTransfer
 
-ENTRYPOINT ["./FastTransfer"]
+RUN chmod 0755 /usr/local/bin/FastTransfer
+
+# OCI Labels
+LABEL org.opencontainers.image.title="FastTransfer (CLI) - Runtime Docker Image" \
+      org.opencontainers.image.description="Minimal container to run FastTransfer (parallel transfer database to database)" \
+      org.opencontainers.image.vendor="Architecture & Performance" \
+      org.opencontainers.image.source="https://github.com/aetperf/FastTransfer-Image" \
+      org.opencontainers.image.licenses="Proprietary"
+
+# Standard volumes
+VOLUME ["/config", "/data", "/work", "/logs"]
+
+# Default to non-root
+USER ${USER}
+
+# ENTRYPOINT directly on the FastTransfer binary
+ENTRYPOINT ["/usr/local/bin/FastTransfer"]
+

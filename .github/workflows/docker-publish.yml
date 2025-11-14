@@ -1,0 +1,67 @@
+name: Build and Push Docker Image
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: 'Version tag from FastTransfer (ex: v0.28.0)'
+        required: true
+
+jobs:
+  build-and-push:
+    runs-on: ubuntu-latest
+
+    steps:
+      - uses: actions/checkout@v3
+
+      # Configure AWS credentials using your custom secret names
+      - name: Configure AWS credentials
+        uses: aws-actions/configure-aws-credentials@v4
+        with:
+          aws-access-key-id: ${{ secrets.AWS_KEY_ID }}
+          aws-secret-access-key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
+          aws-region: eu-west-1
+
+      # Download FastTransfer binary from S3
+      - name: Download FastTransfer binary from S3
+        run: |
+          VERSION=${{ github.event.inputs.version }}
+          FILE="FastTransfer-linux-x64-${VERSION}.zip"
+          S3_PATH="s3://aetpshared/FastTransfer/full/${FILE}"
+
+          echo "Checking if ${S3_PATH} exists..."
+          if ! aws s3 ls "${S3_PATH}" >/dev/null; then
+            echo "❌ FastTransfer version ${VERSION} not found in S3 bucket!"
+            exit 1
+          fi
+
+          echo "✅ Found version ${VERSION}, downloading..."
+          aws s3 cp "${S3_PATH}" FastTransfer.zip
+          
+          unzip FastTransfer.zip -d ./FastTransfer_extracted
+          rm FastTransfer.zip
+
+          # Move the FastTransfer binary to the repo root for the Dockerfile
+          mv ./FastTransfer_extracted/FastTransfer ./FastTransfer
+          chmod +x ./FastTransfer
+          echo "✅ FastTransfer binary ready at ./FastTransfer"
+
+      - name: Log in to Docker Hub
+        uses: docker/login-action@v2
+        with:
+          username: ${{ secrets.DOCKERHUB_USERNAME }}
+          password: ${{ secrets.DOCKERHUB_TOKEN }}
+
+      - name: Build Docker image
+        run: |
+          VERSION=${{ github.event.inputs.version }}
+          echo "Building Docker image for version ${VERSION}"
+          docker build --no-cache \
+            -t aetp/fasttransfer:latest \
+            -t aetp/fasttransfer:${VERSION} .
+
+      - name: Push Docker image
+        run: |
+          VERSION=${{ github.event.inputs.version }}
+          docker push aetp/fasttransfer:latest
+          docker push aetp/fasttransfer:${VERSION}
