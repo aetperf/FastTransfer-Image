@@ -78,22 +78,6 @@ or specify a version tag:
 docker pull aetp/fasttransfer:vX.Y.Z
 ```
 
-## Usage
-
-<<<<<<< HEAD
-The docker image uses as entrypoint the `fasttransfer` binary, so you can directly run it with parameters as defined in the [FastTransfer documentation](https://aetperf.github.io/FastTransfer-Documentation/) ([Architecture & Performance][2])
-You can get the **command line help** using:
-
-```bash
-docker run --rm aetp/fasttransfer:latest
-```
-
-You can get the **version** using:
-
-```bash
-docker run --rm aetp/fasttransfer:latest --version
-```
-
 ## Samples
 
 Here are a few example usage scenarios illustrating how to run FastTransfer inside the container.
