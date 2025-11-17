@@ -132,8 +132,10 @@ Here are a few example usage scenarios illustrating how to run FastTransfer insi
 
 * `/work`   – working directory (container `WORKDIR`)
 * `/config` – optional configuration directory (e.g., to store `FastTransfer_Settings.json` for custom logging)
-* `/data`   – input/output directory (mount your host data here)
+* `/data`   – input directory for source files (CSV, Parquet, etc.) that you want to IMPORT into a target database
 * `/logs`   – logs directory (ensure that logging config is set to write logs here)
+
+> The `/data` volume is only used to provide input files for IMPORT operations. 
 
 ## Configuring FastTransfer Logging with Custom Settings
 
@@ -212,7 +214,7 @@ The following configuration is recommended for most production or orchestrated e
 
 Important notes:
 
-* If a target directory (such as `/logs` or `/airflow/xcom`) does not exist, FastTransfer automatically creates it. ([Architecture & Performance][2])
+* If a target directory (such as `/logs` or `/airflow/xcom`) does not exist, FastTransfer automatically creates it. 
 * The file `/airflow/xcom/return.json` is designed to provide run summaries for integration with orchestration tools.
 
 ---
@@ -270,7 +272,7 @@ docker run --rm \
   --license "$licenseContent"
 ```
 
-If the `--settingsfile` argument is not provided, FastTransfer will use its built‑in default logging configuration. ([Architecture & Performance][2])
+If the `--settingsfile` argument is not provided, FastTransfer will use its built‑in default logging configuration.
 
 ---
 
@@ -279,13 +281,11 @@ If the `--settingsfile` argument is not provided, FastTransfer will use its buil
 | Volume Path | Description                                                | Access Mode            | Typical Usage                            |
 | ----------- | ---------------------------------------------------------- | ---------------------- | ---------------------------------------- |
 | `/config`   | Contains user‑provided configuration files (e.g., logging) | Read‑Only / Read‑Many  | Shared across containers; static configs |
-| `/data`     | Input/output data directory                                | Read‑Many / Write‑Many | Stores input files or target data        |
+| `/data`     | Directory of SOURCE files to import | Read‑Many / Write‑Many | Mount CSV/Parquet files to be loaded |
 | `/work`     | Temporary working directory                                | Read‑Many / Write‑Many | Used internally for intermediate tasks   |
 | `/logs`     | Log output directory (per‑run or aggregated logs)          | Read‑Many / Write‑Many | Stores runtime and execution logs        |
 
 ---
-
-## Performance & networking
 
 * Place `/data` on fast storage (e.g., NVMe) when handling large data imports locally.
 * Tune `--paralleldegree` based on CPU cores and I/O throughput of source/target systems.
@@ -299,9 +299,7 @@ If the `--settingsfile` argument is not provided, FastTransfer will use its buil
 * FastTransfer supports secure logging and obfuscated credentials, but you should still restrict log access and audit credentials.
 
 ## Troubleshooting
-
-* **Exec format error** → ensure the binary is Linux x64 and marked executable (`chmod +x fasttransfer`).
-* **Missing libraries (e.g., libssl, zlib, krb5)** → for certain sources/targets additional system libs may be required; ensure your image or base includes them.
+  --query "SELECT * FROM public.orders" \
 * **Permission denied writing under `/data` or `/logs`** → ensure host directory permissions allow the container user (often non‑root) to write.
 * **Source or target host not reachable** → check network, DNS, firewall and `host.docker.internal` mapping for Docker.
 * **License error / invalid license** → verify you passed correct license content via `--license`, or that your trial license is valid and the binary version matches.
